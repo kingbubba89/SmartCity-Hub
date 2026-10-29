@@ -2,8 +2,10 @@ package com.smartcityhub.backend.controller;
 
 import com.smartcityhub.backend.model.Event;
 import com.smartcityhub.backend.service.EventService;
+
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -11,6 +13,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/events")
 public class EventController {
+
     private final EventService eventService;
 
     public EventController(EventService eventService) {
@@ -18,7 +21,10 @@ public class EventController {
     }
 
     @GetMapping
-    public List<Event> getAllEvents() {
-        return eventService.getAllEvents();
+    public List<Event> getAllEvents(
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String date) {
+
+        return eventService.getAllEvents(category, date);
     }
 }
