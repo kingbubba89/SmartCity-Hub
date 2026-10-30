@@ -1,16 +1,37 @@
+
 <script setup>
 import { ref, onMounted } from 'vue'
 
 const events = ref([])
 const loading = ref(true)
 const error = ref('')
+const selectedCategory = ref('')
+const selectedDate = ref('')
+
+const categories = [
+  'Community Service',
+  'Public Safety',
+  'Cultural'
+]
 
 async function loadEvents() {
   loading.value = true
   error.value = ''
 
   try {
-    const response = await fetch('/api/events')
+    const params = new URLSearchParams()
+
+    if (selectedCategory.value) {
+      params.append('category', selectedCategory.value)
+    }
+
+    if (selectedDate.value) {
+      params.append('date', selectedDate.value)
+    }
+
+    const query = params.toString()
+    const url = query ? `/api/events?${query}` : '/api/events'
+    const response = await fetch(url)
 
     if (!response.ok) {
       throw new Error('Failed to load events')
@@ -24,8 +45,14 @@ async function loadEvents() {
   }
 }
 
+function clearFilters() {
+  selectedCategory.value = ''
+  selectedDate.value = ''
+  loadEvents()
+}
 onMounted(loadEvents)
 </script>
+
 
 <template>
   <main class="container">
@@ -35,6 +62,44 @@ onMounted(loadEvents)
     </header>
 
     <h2>Upcoming Community Events</h2>
+
+    <section class="filters">
+      <div class="filter-group">
+        <label for="category">Category</label>
+
+        <select
+            id="category"
+            v-model="selectedCategory"
+            @change="loadEvents"
+        >
+          <option value="">All Categories</option>
+
+          <option
+              v-for="category in categories"
+              :key="category"
+              :value="category"
+          >
+            {{ category }}
+          </option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label for="eventDate">Event Date</label>
+
+        <input
+            id="eventDate"
+            type="date"
+            v-model="selectedDate"
+            @change="loadEvents"
+        />
+      </div>
+
+      <button class="clear-button" @click="clearFilters">
+        Clear Filters
+      </button>
+    </section>
+
 
     <p v-if="loading">Loading events...</p>
 
@@ -113,4 +178,53 @@ h1 {
 .error {
   color: red;
 }
+
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 20px;
+  padding: 20px;
+  margin-bottom: 30px;
+  background: #eef4ff;
+  border-radius: 12px;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.filter-group label {
+  font-size: 14px;
+  font-weight: bold;
+  color: #374151;
+}
+
+.filter-group select,
+.filter-group input {
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: white;
+  color: #1f2937;
+  font-size: 14px;
+}
+
+.clear-button {
+  padding: 11px 18px;
+  border: none;
+  border-radius: 8px;
+  background: #2563eb;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.clear-button:hover {
+  background: #1d4ed8;
+}
+
 </style>
