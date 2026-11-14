@@ -23,8 +23,9 @@ public class EventController {
     @GetMapping
     public List<Event> getAllEvents(
             @RequestParam(required = false) String category,
-            @RequestParam(required = false) String date) {
+            @RequestParam(required = false) String date,
+            @RequestParam(required = false) String keyword) {
 
-        return eventService.getAllEvents(category, date);
+        return eventService.getAllEvents(category, date, keyword);
     }
 }
