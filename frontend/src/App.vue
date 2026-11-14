@@ -1,12 +1,12 @@
-
 <script setup>
 import { ref, onMounted } from 'vue'
 
 const events = ref([])
-const loading = ref(true)
+const loading = ref(false)
 const error = ref('')
 const selectedCategory = ref('')
 const selectedDate = ref('')
+const searchKeyword = ref('')
 
 const categories = [
   'Community Service',
@@ -14,45 +14,64 @@ const categories = [
   'Cultural'
 ]
 
+// Ignore stale responses when users change filters before a request finishes.
+let requestController = null
+
 async function loadEvents() {
+  if (requestController) requestController.abort()
+  requestController = new AbortController()
+  const controller = requestController
+
   loading.value = true
   error.value = ''
 
   try {
     const params = new URLSearchParams()
 
-    if (selectedCategory.value) {
-      params.append('category', selectedCategory.value)
-    }
-
-    if (selectedDate.value) {
-      params.append('date', selectedDate.value)
-    }
+    if (selectedCategory.value) params.append('category', selectedCategory.value)
+    if (selectedDate.value) params.append('date', selectedDate.value)
+    if (searchKeyword.value.trim()) params.append('keyword', searchKeyword.value.trim())
 
     const query = params.toString()
     const url = query ? `/api/events?${query}` : '/api/events'
-    const response = await fetch(url)
+    const response = await fetch(url, { signal: controller.signal })
 
     if (!response.ok) {
-      throw new Error('Failed to load events')
+      let message = 'Unable to load events. Please try again.'
+      try {
+        const details = await response.json()
+        if (details?.error) message = details.error
+      } catch {
+        // Non-JSON errors still show a useful message.
+      }
+      throw new Error(message)
     }
 
     events.value = await response.json()
   } catch (err) {
-    error.value = err.message
+    if (err.name !== 'AbortError') {
+      events.value = []
+      error.value = err.message === 'Failed to fetch'
+        ? 'Cannot connect to SmartCity Hub. Check that the backend is running.'
+        : err.message
+    }
   } finally {
-    loading.value = false
+    if (requestController === controller) {
+      loading.value = false
+      requestController = null
+    }
   }
 }
 
 function clearFilters() {
   selectedCategory.value = ''
   selectedDate.value = ''
+  searchKeyword.value = ''
   loadEvents()
 }
+
 onMounted(loadEvents)
 </script>
-
 
 <template>
   <main class="container">
@@ -63,22 +82,18 @@ onMounted(loadEvents)
 
     <h2>Upcoming Community Events</h2>
 
-    <section class="filters">
+    <form class="filters" @submit.prevent="loadEvents">
+      <div class="filter-group">
+        <label for="keyword">Keyword Search</label>
+        <input id="keyword" v-model="searchKeyword" type="search"
+               placeholder="Search titles or descriptions..." />
+      </div>
+
       <div class="filter-group">
         <label for="category">Category</label>
-
-        <select
-            id="category"
-            v-model="selectedCategory"
-            @change="loadEvents"
-        >
+        <select id="category" v-model="selectedCategory" @change="loadEvents">
           <option value="">All Categories</option>
-
-          <option
-              v-for="category in categories"
-              :key="category"
-              :value="category"
-          >
+          <option v-for="category in categories" :key="category" :value="category">
             {{ category }}
           </option>
         </select>
@@ -86,49 +101,33 @@ onMounted(loadEvents)
 
       <div class="filter-group">
         <label for="eventDate">Event Date</label>
-
-        <input
-            id="eventDate"
-            type="date"
-            v-model="selectedDate"
-            @change="loadEvents"
-        />
+        <input id="eventDate" v-model="selectedDate" type="date" @change="loadEvents" />
       </div>
 
-      <button class="clear-button" @click="clearFilters">
-        Clear Filters
-      </button>
-    </section>
+      <button class="search-button" type="submit">Search</button>
+      <button class="clear-button" type="button" @click="clearFilters">Clear Filters</button>
+    </form>
 
+    <p v-if="loading" class="status" role="status">Loading events...</p>
 
-    <p v-if="loading">Loading events...</p>
+    <div v-else-if="error" class="error" role="alert">
+      <p>{{ error }}</p>
+      <button type="button" class="search-button" @click="loadEvents">Try Again</button>
+    </div>
 
-    <p v-else-if="error" class="error">
-      {{ error }}
-    </p>
-
-    <p v-else-if="events.length === 0">
-      No events found.
-    </p>
+    <div v-else-if="events.length === 0" class="empty-state" role="status">
+      <h3>No matching events found</h3>
+      <p>Try a different keyword, date, or category.</p>
+      <button type="button" class="search-button" @click="clearFilters">Clear Filters</button>
+    </div>
 
     <section v-else class="event-grid">
-      <article
-          v-for="event in events"
-          :key="event.id"
-          class="event-card"
-      >
+      <article v-for="event in events" :key="event.id" class="event-card">
         <span class="category">{{ event.category }}</span>
-
         <h3>{{ event.title }}</h3>
-
         <p>{{ event.description }}</p>
-
         <p><strong>Location:</strong> {{ event.location }}</p>
-
-        <p>
-          <strong>Date:</strong>
-          {{ new Date(event.eventDate).toLocaleString() }}
-        </p>
+        <p><strong>Date:</strong> {{ new Date(event.eventDate).toLocaleString() }}</p>
       </article>
     </section>
   </main>
@@ -142,14 +141,9 @@ onMounted(loadEvents)
   font-family: Arial, sans-serif;
 }
 
-header {
-  margin-bottom: 40px;
-}
+header { margin-bottom: 40px; }
 
-h1 {
-  color: #2563eb;
-  font-size: 36px;
-}
+h1 { color: #2563eb; font-size: 36px; }
 
 .event-grid {
   display: grid;
@@ -174,11 +168,6 @@ h1 {
   border-radius: 20px;
   font-size: 13px;
 }
-
-.error {
-  color: red;
-}
-
 
 .filters {
   display: flex;
@@ -213,6 +202,7 @@ h1 {
   font-size: 14px;
 }
 
+.search-button,
 .clear-button {
   padding: 11px 18px;
   border: none;
@@ -223,8 +213,22 @@ h1 {
   cursor: pointer;
 }
 
-.clear-button:hover {
-  background: #1d4ed8;
+.clear-button { background: #475569; }
+
+.search-button:hover { background: #1d4ed8; }
+.clear-button:hover { background: #334155; }
+
+.error {
+  padding: 20px;
+  border-radius: 8px;
+  background: #fef2f2;
+  color: #991b1b;
 }
 
+.status, .empty-state {
+  padding: 24px;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #334155;
+}
 </style>
