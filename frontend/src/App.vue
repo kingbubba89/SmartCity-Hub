@@ -1,6 +1,8 @@
 <script setup>
 import { ref, onMounted } from 'vue'
+import ServiceRequests from './components/ServiceRequests.vue'
 
+const currentPage = ref('events')
 const events = ref([])
 const loading = ref(false)
 const error = ref('')
@@ -80,6 +82,19 @@ onMounted(loadEvents)
       <p>Discover events and activities in your community.</p>
     </header>
 
+    <nav class="main-nav">
+      <button @click="currentPage = 'events'">
+        Community Events
+      </button>
+      <button @click="currentPage = 'services'">
+        City Services
+      </button>
+    </nav>
+
+    <ServiceRequests v-if="currentPage === 'services'" />
+
+    <div v-if="currentPage === 'events'">
+
     <h2>Upcoming Community Events</h2>
 
     <form class="filters" @submit.prevent="loadEvents">
@@ -130,6 +145,7 @@ onMounted(loadEvents)
         <p><strong>Date:</strong> {{ new Date(event.eventDate).toLocaleString() }}</p>
       </article>
     </section>
+    </div>
   </main>
 </template>
 
@@ -230,5 +246,21 @@ h1 { color: #2563eb; font-size: 36px; }
   border-radius: 8px;
   background: #f8fafc;
   color: #334155;
+}
+
+.main-nav {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 30px;
+}
+
+.main-nav button {
+  padding: 12px 20px;
+  border: none;
+  border-radius: 8px;
+  background: #1e40af;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
 }
 </style>
