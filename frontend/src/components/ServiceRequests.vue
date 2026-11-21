@@ -3,6 +3,18 @@
 import { ref, onMounted } from 'vue'
 
 const activeTab = ref('submit')
+const selectedDepartment = ref('Public Works')
+const departmentRequests = ref([])
+const departmentLoading = ref(false)
+const departmentError = ref('')
+
+const departments = [
+  'Public Works',
+  'Road Maintenance',
+  'Water Department',
+  'Parks and Recreation',
+  'Public Safety'
+]
 const requests = ref([])
 const selectedRequest = ref(null)
 const trackingId = ref('')
@@ -117,13 +129,54 @@ async function updateRequest(request) {
   }
 }
 
-ffunction changeTab(tab) {
+
+async function loadDepartmentRequests() {
+  departmentLoading.value = true
+  departmentError.value = ''
+
+  try {
+    const department = encodeURIComponent(selectedDepartment.value)
+
+    departmentRequests.value = await api(
+        `/api/requests?department=${department}`
+    )
+  } catch (err) {
+    departmentError.value = err.message
+    departmentRequests.value = []
+  } finally {
+    departmentLoading.value = false
+  }
+}
+
+async function updateDepartmentRequest(request) {
+  departmentError.value = ''
+  message.value = ''
+
+  try {
+    const updated = await api(`/api/requests/${request.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        status: request.status,
+        progressNotes: request.progressNotes
+      })
+    })
+
+    message.value = `Request #${updated.id} updated successfully.`
+    await loadDepartmentRequests()
+  } catch (err) {
+    departmentError.value = err.message
+  }
+}
+
+function changeTab(tab) {
   activeTab.value = tab
   error.value = ''
   message.value = ''
 
   if (tab === 'admin') loadRequests()
   if (tab === 'track' && trackingId.value) trackRequest()
+  if (tab === 'department') loadDepartmentRequests()
 }
 
 onMounted(() => {})
@@ -145,6 +198,12 @@ onMounted(() => {})
           :class="{ active: activeTab === 'track' }"
           @click="changeTab('track')">
         Track Request
+      </button>
+
+      <button
+          :class="{ active: activeTab === 'department' }"
+          @click="changeTab('department')">
+        Department Manager
       </button>
 
       <button
@@ -237,7 +296,7 @@ onMounted(() => {})
       </article>
     </section>
 
-    <!-- Demonstration administration interface -->
+    <!-- administration interface -->
     <section v-if="activeTab === 'admin'" class="panel">
       <h3>City Administration Dashboard</h3>
 
@@ -312,6 +371,80 @@ onMounted(() => {})
 
         <button @click="updateRequest(request)">
           Save Changes
+        </button>
+      </div>
+    </section>
+
+
+    <!-- Department Manager Dashboard -->
+    <section v-if="activeTab === 'department'" class="panel">
+      <h3>Department Management</h3>
+      <p>View and update service requests assigned to your department.</p>
+
+      <label>
+        Select Department
+        <select
+            v-model="selectedDepartment"
+            @change="loadDepartmentRequests">
+          <option
+              v-for="department in departments"
+              :key="department"
+              :value="department">
+            {{ department }}
+          </option>
+        </select>
+      </label>
+
+      <button
+          style="margin-top: 15px"
+          @click="loadDepartmentRequests"
+          :disabled="departmentLoading">
+        Refresh Department Requests
+      </button>
+
+      <p v-if="departmentError" class="error" role="alert">
+        {{ departmentError }}
+      </p>
+
+      <p v-if="departmentLoading">
+        Loading department requests...
+      </p>
+
+      <p v-else-if="departmentRequests.length === 0">
+        No requests assigned to this department.
+      </p>
+
+      <div
+          v-for="request in departmentRequests"
+          :key="request.id"
+          class="request-card">
+
+        <h4>#{{ request.id }} — {{ request.title }}</h4>
+
+        <p><strong>Resident:</strong> {{ request.residentName }}</p>
+        <p><strong>Location:</strong> {{ request.location }}</p>
+        <p><strong>Description:</strong> {{ request.description }}</p>
+
+        <label>
+          Request Status
+          <select v-model="request.status">
+            <option value="SUBMITTED">Submitted</option>
+            <option value="IN_PROGRESS">In Progress</option>
+            <option value="RESOLVED">Resolved</option>
+          </select>
+        </label>
+
+        <label>
+          Progress Notes
+          <textarea
+              v-model="request.progressNotes"
+              rows="3"
+              placeholder="Enter progress update...">
+      </textarea>
+        </label>
+
+        <button @click="updateDepartmentRequest(request)">
+          Save Progress
         </button>
       </div>
     </section>

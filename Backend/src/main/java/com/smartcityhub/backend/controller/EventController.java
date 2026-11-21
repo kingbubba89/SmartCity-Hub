@@ -24,8 +24,11 @@ public class EventController {
     public List<Event> getAllEvents(
             @RequestParam(required = false) String category,
             @RequestParam(required = false) String date,
-            @RequestParam(required = false) String keyword) {
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String location) {
 
-        return eventService.getAllEvents(category, date, keyword);
+        return eventService.getAllEvents(
+                category, date, keyword, location);
     }
+
 }

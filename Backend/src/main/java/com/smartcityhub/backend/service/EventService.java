@@ -6,9 +6,8 @@ import com.smartcityhub.backend.strategy.DateFilterStrategy;
 import com.smartcityhub.backend.strategy.EventFilterStrategy;
 import com.smartcityhub.backend.strategy.EventTypeFilterStrategy;
 import com.smartcityhub.backend.strategy.KeywordFilterStrategy;
-
 import org.springframework.stereotype.Service;
-
+import com.smartcityhub.backend.strategy.LocationFilterStrategy;
 import java.util.List;
 
 @Service
@@ -20,12 +19,13 @@ public class EventService {
         this.eventRepository = eventRepository;
     }
 
-    // Keep the original two-parameter method for existing callers.
-    public List<Event> getAllEvents(String category, String date) {
-        return getAllEvents(category, date, null);
+    public List<Event> getAllEvents(
+            String category, String date, String keyword) {
+        return getAllEvents(category, date, keyword, null);
     }
 
-    public List<Event> getAllEvents(String category, String date, String keyword) {
+    public List<Event> getAllEvents(
+            String category, String date, String keyword, String location) {
 
         List<Event> events = eventRepository.findAll();
 
@@ -44,6 +44,15 @@ public class EventService {
             events = strategy.filter(events, keyword);
         }
 
-        return events;
+        if (location != null && !location.isBlank()) {
+            EventFilterStrategy strategy = new LocationFilterStrategy();
+            events = strategy.filter(events, location);
+        }
+
+        return events.stream()
+                .filter(event -> event.getEventDate() != null)
+                .sorted(java.util.Comparator.comparing(Event::getEventDate))
+                .toList();
     }
+
 }

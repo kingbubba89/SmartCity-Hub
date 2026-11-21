@@ -9,7 +9,7 @@ const error = ref('')
 const selectedCategory = ref('')
 const selectedDate = ref('')
 const searchKeyword = ref('')
-
+const selectedLocation = ref('')
 const categories = [
   'Community Service',
   'Public Safety',
@@ -33,6 +33,9 @@ async function loadEvents() {
     if (selectedCategory.value) params.append('category', selectedCategory.value)
     if (selectedDate.value) params.append('date', selectedDate.value)
     if (searchKeyword.value.trim()) params.append('keyword', searchKeyword.value.trim())
+    if (selectedLocation.value.trim()) {
+      params.append('location', selectedLocation.value.trim())
+    }
 
     const query = params.toString()
     const url = query ? `/api/events?${query}` : '/api/events'
@@ -44,7 +47,6 @@ async function loadEvents() {
         const details = await response.json()
         if (details?.error) message = details.error
       } catch {
-        // Non-JSON errors still show a useful message.
       }
       throw new Error(message)
     }
@@ -69,6 +71,7 @@ function clearFilters() {
   selectedCategory.value = ''
   selectedDate.value = ''
   searchKeyword.value = ''
+  selectedLocation.value = ''
   loadEvents()
 }
 
@@ -117,6 +120,16 @@ onMounted(loadEvents)
       <div class="filter-group">
         <label for="eventDate">Event Date</label>
         <input id="eventDate" v-model="selectedDate" type="date" @change="loadEvents" />
+      </div>
+
+      <div class="filter-group">
+        <label for="location">Location</label>
+        <input
+            id="location"
+            v-model="selectedLocation"
+            type="search"
+            placeholder="Search by location..."
+        />
       </div>
 
       <button class="search-button" type="submit">Search</button>
