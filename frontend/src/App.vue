@@ -11,6 +11,11 @@ const selectedDate = ref('')
 const searchKeyword = ref('')
 const selectedLocation = ref('')
 const categories = [
+  'Music',
+  'Tech',
+  'Sports',
+  'Social',
+  'Career',
   'Community Service',
   'Public Safety',
   'Cultural'
